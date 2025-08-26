@@ -1,0 +1,48 @@
+{
+    "name": "meius/laravel-transaction-orchestrator",
+    "description": "Attribute-driven transactions and row-level locks for Laravel: retries, backoff, HTTP-aware rollbacks, and FOR UPDATE/SHARE on route model binding.",
+    "keywords": [
+        "laravel",
+        "transactions",
+        "attributes",
+        "row-level-locks",
+        "lock-for-update",
+        "shared-lock",
+        "retry",
+        "backoff",
+        "http-rollback",
+        "concurrency"
+    ],
+    "type": "library",
+    "license": "MIT",
+    "autoload": {
+        "psr-4": {
+            "Meius\\LaravelTransactionOrchestrator\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Meius\\LaravelTransactionOrchestrator\\Tests\\": "tests/"
+        }
+    },
+    "authors": [
+        {
+            "name": "Bohdan Meius",
+            "email": "bohdan.meius@gmail.com"
+        }
+    ],
+    "minimum-stability": "dev",
+    "require": {
+        "php": "^8.2",
+        "illuminate/database": "^11.0 || ^12.0",
+        "illuminate/routing": "^11.0 || ^12.0",
+        "illuminate/support": "^11.0 || ^12.0",
+        "ext-pdo": "*"
+    },
+    "require-dev": {
+        "phpstan/phpstan": "^2",
+        "phpunit/phpunit": "^10",
+        "orchestra/testbench": "^9 || ^10",
+        "squizlabs/php_codesniffer": "4.0.x-dev"
+    }
+}
