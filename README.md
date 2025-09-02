@@ -29,8 +29,6 @@ Annotate parameters with `#[LockForUpdate]` / `#[SharedLock]` — get row-locks 
 * [HTTP-Aware Rollback](#http-aware-rollback)
 * [Multiple Connections](#multiple-connections)
 * [Nested Transactions](#nested-transactions)
-* [Side Effects & Queues](#side-effects--queues)
-* [How It Works](#how-it-works)
 * [Limitations](#limitations)
 * [License](#license)
 
@@ -64,42 +62,61 @@ If your driver/version doesn’t support the mode, behavior matches Laravel.
 
 ## Installation
 
-```bash
-composer require meius/laravel-transaction-orchestrator
-```
+1. **Composer Installation:**  
+   Install the package using Composer:
 
-The package auto-registers its service provider. Defaults work out of the box.
+    ```bash
+    composer require meius/laravel-transaction-orchestrator
+    ```
+
+2. **Register the Service Provider:**  
+   Manually register the service provider by adding it to your `bootstrap/providers.php` file:
+
+```php
+return [
+    // Other service providers...
+    Meius\LaravelTransactionOrchestrator\Providers\TransactionOrchestratorServiceProvider::class,
+];
+```
 
 ---
 
 ## Quick Start
 
 ```php
-use App\Http\Controllers\Controller;
 use App\Models\Order;
-use Illuminate\Http\Request;
-use Meius\LaravelTransactionOrchestrator\Attributes\Transactional;
+use App\Repositories\OrderRepository;
 use Meius\LaravelTransactionOrchestrator\Attributes\Locks\LockForUpdate;
+use Meius\LaravelTransactionOrchestrator\Attributes\Transactional;
 use Meius\LaravelTransactionOrchestrator\Enums\HttpRollbackPolicy;
+use Symfony\Component\HttpFoundation\Response;
 
-final class OrderController extends Controller
+class OrderController extends Controller
 {
+    public function __construct(
+        private readonly OrderRepository $orderRepository,
+    ) {
+        //
+    }
+    
     #[Transactional(
         connection: 'mysql',
         retries: 3,
         backoff: [50, 100, 200], // milliseconds
-        noRollbackOn: [CustomQueryException::class],
-        rollbackOnHttpError: HttpRollbackPolicy::ROLLBACK_ON_4XX_5XX,
+        noRollbackOn: [QueryException::class],
+        rollbackOnHttpError: HttpRollbackPolicy::ROLLBACK_ON_5XX,
     )]
-    public function update(Request $request, #[LockForUpdate] Order $order)
+    public function destroy(#[LockForUpdate] Order $order): Response 
     {
-        $data = $request->validate([
-            'status' => ['required', 'string'],
-        ]);
+        try {
+            $this->orderRepository->delete($order);
+        } catch (\Throwable) {
+            return response()->json([
+                'message' => 'Unable to delete the order.',
+            ], Response::HTTP_INTERNAL_SERVER_ERROR); // 5xx → rollback (per policy)
+        }
 
-        $order->update($data);
-
-        return response()->noContent(); // 204 → commit, 4xx/5xx → rollback (per policy)
+        return response()->noContent(); // 204 → commit
     }
 }
 ```
@@ -112,31 +129,13 @@ final class OrderController extends Controller
 
 **Purpose:** run the controller method inside transaction(s).
 
-```php
-#[Attribute(Attribute::TARGET_METHOD)]
-final readonly class Transactional
-{
-    public function __construct(
-        public null|string|array $connection = null,
-        public int $retries = 0,
-        public int|array $backoff = 10, // ms; number or per-attempt list
-        /** @var list<class-string<Throwable>> */
-        public array $noRollbackOn = [],
-        /** HttpRollbackPolicy|list<int> */
-        public HttpRollbackPolicy|array $rollbackOnHttpError = HttpRollbackPolicy::ROLLBACK_ON_4XX_5XX
-    ) {}
-}
-```
-
 **Parameters & behavior:**
 
 * `connection`: `null|string|string[]`.
-
     * `null` → default from `config/database.php`.
     * Normalized to array at runtime → `$connections`.
 * `retries`: how many times to retry on **transient** DB errors (deadlock, lock timeout, disconnect, etc.).
 * `backoff`: delay in ms before retry.
-
     * Single number = constant delay.
     * Array = per-attempt delay, last value repeats.
 * `noRollbackOn`: list of exception FQCNs that **do not** trigger rollback.
@@ -160,14 +159,6 @@ final readonly class Transactional
 
 **Purpose:** apply row-lock to action parameter during route model binding.
 
-```php
-#[Attribute(Attribute::TARGET_PARAMETER)]
-final class LockForUpdate implements LockAttributeContract {}
-
-#[Attribute(Attribute::TARGET_PARAMETER)]
-final class SharedLock implements LockAttributeContract {}
-```
-
 How it works:
 
 * Before resolving the parameter, the router checks the attribute and applies the standard Eloquent lock (`lockForUpdate()` or `sharedLock()`) **just once**.
@@ -177,11 +168,47 @@ How it works:
 **Example:**
 
 ```php
-#[Transactional]
-public function show(#[SharedLock] Order $order)
+use App\Exceptions\Products\CannotRemoveProductException;
+use App\Exceptions\Products\ProductNotInOrderException;
+use App\Http\Resources\OrderResource;
+use App\Models\Order;
+use App\Models\Product;
+use App\Services\OrderService;
+use Meius\LaravelTransactionOrchestrator\Attributes\Locks\LockForUpdate;
+use Meius\LaravelTransactionOrchestrator\Attributes\Locks\SharedLock;
+use Meius\LaravelTransactionOrchestrator\Attributes\Transactional;
+use Symfony\Component\HttpFoundation\Response;
+
+class OrderProductController extends Controller
 {
-    // Loaded under a shared lock: concurrent reads allowed, writes block.
-    return view('orders.show', compact('order'));
+    public function __construct(
+        private readonly OrderService $orderService,
+    ) {
+        //
+    }
+
+    /**
+     * Removes a product from the order.
+     */
+    #[Transactional]
+    public function destroy(
+        #[LockForUpdate] Order $order,
+        #[SharedLock] Product $product
+    ): Response {
+        try {
+            $order = $this->orderService->recalculate($order, $product);
+        } catch (ProductNotInOrderException|CannotRemoveProductException $exception) {
+            return response()->json([
+                'error' => $exception->getMessage(),
+            ], Response::HTTP_UNPROCESSABLE_ENTITY);
+        } catch (\Throwable) {
+            return response()->json([
+                'error' => 'Unable to remove product from order.',
+            ], Response::HTTP_INTERNAL_SERVER_ERROR);
+        }
+
+        return OrderResource::make($order)->response();
+    }
 }
 ```
 
@@ -220,7 +247,7 @@ Decision is made **after** action returns a `Response`, before sending body.
 `connection` accepts an array:
 
 ```php
-#[Transactional(connection: ['mysql', 'audit_pg'])]
+#[Transactional(connection: ['mysql', 'pgsql'])]
 ```
 
 * Opens a transaction for each connection.
@@ -234,16 +261,6 @@ Decision is made **after** action returns a `Response`, before sending body.
 * If you call `DB::transaction()` inside, Laravel uses **savepoints** (if supported).
 * Outer `#[Transactional]` decides final commit/rollback.
 * Do not mix manual `commit()`/`rollBack()` with orchestrator — use `DB::transaction()`.
-
----
-
-## How It Works
-
-1. Service provider registers router decorator and lock-aware binding.
-2. Attributes analyzed via reflection before controller resolution.
-3. If `LockForUpdate`/`SharedLock` found, a one-time scope applies Eloquent lock.
-4. Action runs inside transaction(s); transient errors trigger retries/backoff.
-5. Final `Response` checked against rollback policy.
 
 ---
 

@@ -6,13 +6,13 @@ We aim to keep this community open, safe, and welcoming for everyone—regardles
 
 ## Standards
 
-✅ Positive behavior includes:
+Positive behavior includes:
 
 * Respectful, inclusive communication
 * Constructive feedback and collaboration
 * Supporting each other’s growth
 
-❌ Unacceptable behavior includes:
+Unacceptable behavior includes:
 
 * Harassment, abuse, or hate speech
 * Discrimination of any kind
@@ -33,7 +33,7 @@ This applies to all community spaces: GitHub repos, issues, PRs, forums, chats, 
 ## Enforcement
 
 Report violations to [**bohdan.meius@gmail.com**](mailto:bohdan.meius@gmail.com).
-Maintainers will review cases promptly and may issue warnings, 
+Maintainers will review cases promptly and may issue warnings,
 temporary bans, or permanent removal depending on severity.
 
 ## Attribution

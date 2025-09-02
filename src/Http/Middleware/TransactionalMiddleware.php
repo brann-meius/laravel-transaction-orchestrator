@@ -6,6 +6,7 @@ namespace Meius\LaravelTransactionOrchestrator\Http\Middleware;
 
 use Carbon\CarbonInterval;
 use Closure;
+use Illuminate\Contracts\Support\Responsable;
 use Illuminate\Database\DetectsConcurrencyErrors;
 use Illuminate\Http\Request;
 use Illuminate\Support\Sleep;
@@ -14,6 +15,7 @@ use Meius\LaravelTransactionOrchestrator\Support\Database\TransactionManager;
 use Meius\LaravelTransactionOrchestrator\Support\Reflection\MethodAttributeInspector;
 use Meius\LaravelTransactionOrchestrator\Traits\DetectsClassTypes;
 use Meius\LaravelTransactionOrchestrator\Traits\DeterminesHttpRollback;
+use Symfony\Component\HttpFoundation\Response;
 use Throwable;
 
 readonly class TransactionalMiddleware
@@ -31,7 +33,7 @@ readonly class TransactionalMiddleware
     /**
      * @throws Throwable
      */
-    public function handle(Request $request, Closure $next): mixed
+    public function handle(Request $request, Closure $next): Response|Responsable
     {
         $route = $request->route();
         $inspector = MethodAttributeInspector::for(
@@ -54,8 +56,11 @@ readonly class TransactionalMiddleware
      *
      * @throws Throwable
      */
-    protected function wrapWithTransaction(Request $request, Closure $next, Transactional $transactional): mixed
-    {
+    protected function wrapWithTransaction(
+        Request $request,
+        Closure $next,
+        Transactional $transactional
+    ): Response|Responsable {
         $attempt = 0;
         $this->transactionManager->initializeConnectionsFrom($transactional);
 
