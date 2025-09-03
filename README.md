@@ -1,5 +1,6 @@
 # Laravel Transaction Orchestrator
 
+[![Build Status](https://img.shields.io/github/actions/workflow/status/brann-meius/laravel-transaction-orchestrator/ci.yml)](https://github.com/brann-meius/laravel-transaction-orchestrator/actions)
 [![License](https://img.shields.io/github/license/brann-meius/laravel-transaction-orchestrator)](LICENSE)
 [![codecov](https://codecov.io/github/brann-meius/laravel-transaction-orchestrator/graph/badge.svg?token=3MO0781T6B)](https://codecov.io/github/brann-meius/laravel-transaction-orchestrator)
 [![Codacy Badge](https://app.codacy.com/project/badge/Grade/2d8a4cd4836d4a47b703617bfed199bc)](https://app.codacy.com/gh/brann-meius/laravel-transaction-orchestrator/dashboard?utm_source=gh&utm_medium=referral&utm_content=&utm_campaign=Badge_grade)
