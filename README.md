@@ -41,7 +41,6 @@ Annotate parameters with `#[LockForUpdate]` / `#[SharedLock]` — get row-locks 
 * Rollback policy based on HTTP response (4xx/5xx/specific codes).
 * Exceptions that **do not** trigger rollback (`noRollbackOn`).
 * `#[LockForUpdate]` / `#[SharedLock]` on action parameters — row-lock during route model binding.
-* Zero config: service provider and router decoration auto-registered.
 
 ---
 

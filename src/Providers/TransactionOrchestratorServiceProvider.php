@@ -12,6 +12,9 @@ use Meius\LaravelTransactionOrchestrator\Decorators\Routing\RouterDecorator;
 use Meius\LaravelTransactionOrchestrator\Http\Middleware\LockAwareSubstituteBindings;
 use Meius\LaravelTransactionOrchestrator\Http\Middleware\TransactionalMiddleware;
 
+/**
+ * @codeCoverageIgnore
+ */
 class TransactionOrchestratorServiceProvider extends ServiceProvider
 {
     public function register(): void
