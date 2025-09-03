@@ -18,7 +18,7 @@ abstract class AttributeInspector
 
     public static function from(ReflectionMethod|ReflectionParameter $reflector): static
     {
-        return new static($reflector);
+        return new (static::class)($reflector);
     }
 
     /**
